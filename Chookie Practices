@@ -1,0 +1,306 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
+
+public class PizzaOrderSystem {
+
+    // Global inventory variables
+    private static int veggieInventory = 50;
+    private static int pepperoniInventory = 30;
+    private static int hawaiianInventory = 20;
+    private static int sausageInventory = 30;
+    private static int mushroomInventory = 50;
+
+    // Order class to represent a pizza order
+    static class Order {
+        String customerName;
+        int orderID;
+        String pizzaType;
+        int quantity;
+        float price;
+
+        Order(String customerName, int orderID, String pizzaType, int quantity, float price) {
+            this.customerName = customerName;
+            this.orderID = orderID;
+            this.pizzaType = pizzaType;
+            this.quantity = quantity;
+            this.price = price;
+        }
+    }
+
+    public static String caesarCipherEncrypt(String text, int shift) {
+        StringBuilder encrypted = new StringBuilder();
+
+        for (char ch : text.toCharArray()) {
+            if (Character.isLetter(ch)) {
+                char base = Character.isUpperCase(ch) ? 'A' : 'a';
+                encrypted.append((char) ((ch - base + shift) % 26 + base));
+            } else {
+                encrypted.append(ch);
+            }
+        }
+
+        return encrypted.toString();
+    }
+
+    public static void createUserAccount(Scanner scanner) {
+        System.out.println("\n--- Create Account ---");
+        System.out.print("Enter a username: ");
+        String username = scanner.nextLine();
+
+        System.out.print("Enter a password: ");
+        String password = scanner.nextLine();
+
+        String encryptedPassword = caesarCipherEncrypt(password, 3);
+
+        try (FileWriter writer = new FileWriter("users.txt", true)) {
+            writer.write(username + "," + encryptedPassword + "\n"); // Changed delimiter to comma
+            System.out.println("Account created successfully!");
+        } catch (IOException e) {
+            System.out.println("An error occurred while saving the account.");
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean login(Scanner scanner) {
+        System.out.println("\n--- Login ---");
+        System.out.print("Enter your username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter your password: ");
+        String password = scanner.nextLine();
+        String encryptedPassword = caesarCipherEncrypt(password, 3);
+
+        try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length == 2 && parts[0].trim().equals(username) && parts[1].trim().equals(encryptedPassword)) {
+                    System.out.println("Login successful!");
+                    return true;
+                }
+            }
+            System.out.println("Invalid username or password.");
+            return false;
+        } catch (IOException e) {
+            System.out.println("An error occurred while reading user data.");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static void displayMenu() {
+        System.out.println("\nAvailable Pizzas:");
+        System.out.println("1. Veggie - Php 180.00");
+        System.out.println("2. Pepperoni - Php 200.00");
+        System.out.println("3. Hawaiian - Php 240.00");
+        System.out.println("4. Sausage - Php 220.00");
+        System.out.println("5. Mushroom - Php 220.00");
+    }
+
+    public static void placeOrder(Scanner sc) {
+        System.out.print("Enter Customer Name: ");
+        String customerName = sc.next();
+
+        System.out.print("Enter Order ID: ");
+        int orderID = sc.nextInt();
+
+        displayMenu();
+        System.out.print("Enter Pizza Type (1-5): ");
+        int type = sc.nextInt();
+
+        if (!validatePizzaType(type)) {
+            System.out.println("Invalid pizza type.");
+            return;
+        }
+
+        System.out.print("Enter quantity: ");
+        int quantity = sc.nextInt();
+
+        int inventory = 0;
+        String pizzaType = "";
+        switch (type) {
+            case 1:
+                inventory = veggieInventory;
+                pizzaType = "Veggie";
+                break;
+            case 2:
+                inventory = pepperoniInventory;
+                pizzaType = "Pepperoni";
+                break;
+            case 3:
+                inventory = hawaiianInventory;
+                pizzaType = "Hawaiian";
+                break;
+            case 4:
+                inventory = sausageInventory;
+                pizzaType = "Sausage";
+                break;
+            case 5:
+                inventory = mushroomInventory;
+                pizzaType = "Mushroom";
+                break;
+            default:
+                System.out.println("Invalid pizza type.");
+                return;
+        }
+
+        if (!validateQuantity(quantity, inventory)) {
+            System.out.println("Insufficient inventory.");
+            return;
+        }
+
+        float price = calculateTotalPrice(pizzaType, quantity);
+
+        Order order = new Order(customerName, orderID, pizzaType, quantity, price);
+        confirmOrder(order, price);
+    }
+
+    public static void viewOrderHistory() {
+        try (BufferedReader br = new BufferedReader(new FileReader("orders.txt"))) {
+            String line;
+            System.out.println("\n--- Order History ---");
+            while ((line = br.readLine()) != null) {
+                System.out.println(line);
+            }
+        } catch (IOException e) {
+            System.out.println("Error opening order history file.");
+        }
+    }
+
+    public static void updateInventory(Order order) {
+        switch (order.pizzaType) {
+            case "Veggie":
+                veggieInventory -= order.quantity;
+                break;
+            case "Pepperoni":
+                pepperoniInventory -= order.quantity;
+                break;
+            case "Hawaiian":
+                hawaiianInventory -= order.quantity;
+                break;
+            case "Sausage":
+                sausageInventory -= order.quantity;
+                break;
+            case "Mushroom":
+                mushroomInventory -= order.quantity;
+                break;
+        }
+    }
+
+    public static void saveOrder(Order order) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter("orders.txt", true))) {
+            bw.write(order.customerName + "," + order.orderID + "," + order.pizzaType + "," + order.quantity + "," + String.format("%.2f", order.price));
+            bw.newLine();
+            System.out.println("Order saved successfully.");
+        } catch (IOException e) {
+            System.out.println("Error saving order to file.");
+        }
+    }
+
+    public static float calculateTotalPrice(String pizzaType, int quantity) {
+        switch (pizzaType) {
+            case "Veggie":
+                return quantity * 180.00f;
+            case "Pepperoni":
+                return quantity * 200.00f;
+            case "Hawaiian":
+                return quantity * 240.00f;
+            case "Sausage":
+                return quantity * 220.00f;
+            case "Mushroom":
+                return quantity * 220.00f;
+            default:
+                return 0;
+        }
+    }
+
+    public static void confirmOrder(Order order, float totalPrice) {
+        System.out.println("\n--- Order Confirmation ---");
+        System.out.println("Customer Name: " + order.customerName);
+        System.out.println("Order ID: " + order.orderID);
+        System.out.println("Pizza Type: " + order.pizzaType);
+        System.out.println("Quantity: " + order.quantity);
+        System.out.println("Total Price: Php " + String.format("%.2f", totalPrice));
+
+        saveOrder(order);
+        updateInventory(order);
+    }
+
+    public static boolean validatePizzaType(int type) {
+        return type >= 1 && type <= 5;
+    }
+
+    public static boolean validateQuantity(int quantity, int inventory) {
+        return quantity <= inventory;
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int choice;
+        boolean loggedIn = false;
+
+        System.out.println("|----------------Pizza Ordering System---------------|");
+        System.out.println("|  1. Create Account                               |");
+        System.out.println("|  2. Login                                        |");
+        System.out.println("|  3. Exit                                         |");
+        System.out.println("|----------------------------------------------------|");
+
+        do {
+            System.out.print("Enter your choice: ");
+            choice = scanner.nextInt();
+            scanner.nextLine(); // Consume newline
+
+            switch (choice) {
+                case 1:
+                    createUserAccount(scanner);
+                    break;
+                case 2:
+                    loggedIn = login(scanner);
+                    break;
+                case 3:
+                    System.out.println("Exiting the system.");
+                    scanner.close();
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        } while (!loggedIn);
+
+        System.out.println("\n--- Welcome to the Pizza Ordering System! ---");
+
+        do {
+            System.out.println("\n|-------------Pizza Ordering System-----------|");
+            System.out.println("|  1. Place Order                             |");
+            System.out.println("|  2. View Order History                      |");
+            System.out.println("|  3. Logout                                  |");
+            System.out.println("|  4. Exit                                    |");
+            System.out.println("|---------------------------------------------|");
+            System.out.print("Enter your choice: ");
+            choice = scanner.nextInt();
+
+            switch (choice) {
+                case 1:
+                    placeOrder(scanner);
+                    break;
+                case 2:
+                    viewOrderHistory();
+                    break;
+                case 3:
+                    System.out.println("Logged out successfully.");
+                    loggedIn = false;
+                    break;
+                case 4:
+                    System.out.println("Exiting the system.");
+                    scanner.close();
+                    return;
+                default:
+                    System.out.println("Invalid choice. Please try again.");
+            }
+        } while (loggedIn);
+
+        scanner.close();
+    }
+}
